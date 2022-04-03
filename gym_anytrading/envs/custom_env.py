@@ -2,17 +2,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gym import spaces
 
-from .trading_env import TradingEnv #, Actions, Positions
+from .trading_env import TradingEnv, Actions, Positions
 
 
 class CustomEnv(TradingEnv):
 
-    def __init__(self, df, window_size, frame_bound, bankroll, short=False, discrete=False):
+    def __init__(self, df, window_size, frame_bound, bankroll, dividends, short=False, discrete=False):
         assert len(frame_bound) == 2
+        assert dividends is None or len(df) == len(dividends)
+        self.dividends = dividends
 
         self.frame_bound = frame_bound
         self.num_tickers = len(df)
         super().__init__(df, window_size)
+
+        self.dates = df[next(iter(df))].index[frame_bound[0] - window_size:frame_bound[1]]
+        print(f"From {self.dates[0]} to {self.dates[-1]}")
         
         if discrete:
             print('Discrete action space')
@@ -106,6 +111,7 @@ class CustomEnv(TradingEnv):
             order_volume = -self.positions[1]
             order_size = order_volume * self.prices[self._current_tick-1]'''
         
+        div = self._check_dividends()
         new_positions = (action[1:] * self.net_worth) // self.prices[self._current_tick-1]
         #print(action, new_positions)
         # update positions vector
@@ -113,7 +119,7 @@ class CustomEnv(TradingEnv):
         #self.positions[1] += order_volume
         self.positions[1:] = new_positions
         #self.positions[0] -= order_size
-        self.positions[0] = self.net_worth - (new_positions*self.prices[self._current_tick-1]).sum()
+        self.positions[0] = self.net_worth - (new_positions*(self.prices[self._current_tick-1] - div)).sum()
         
         step_reward = self._calculate_reward()
         self._total_reward += step_reward
@@ -135,17 +141,28 @@ class CustomEnv(TradingEnv):
 
         return observation, step_reward, self._done, info
     
-    
+    def _check_dividends(self):
+        div = np.zeros(self.num_tickers)
+        if self.dividends is None:
+            return div
+        i = 0
+        for ticker in self.df:
+            if self.dates[self._current_tick] in self.dividends[ticker].index.values:
+                div[i] = self.dividends[ticker].loc[self.dates[self._current_tick]].Dividends
+            i += 1
+        return div
     
     def _calculate_reward(self):
         #unrealized
-        price_diff = self.prices[self._current_tick] - self.prices[self._current_tick-1]
+        div = self._check_dividends()
+        price_diff = self.prices[self._current_tick] - self.prices[self._current_tick-1] + div
         return (self.positions[1:]*price_diff).sum()
 
 
     def _update_profit(self):
         # unrealized
-        price_diff = self.prices[self._current_tick] - self.prices[self._current_tick-1]
+        div = self._check_dividends()
+        price_diff = self.prices[self._current_tick] - self.prices[self._current_tick-1] + div
         self._total_profit += (self.positions[1:] * price_diff).sum()
 
                 
