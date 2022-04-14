@@ -53,3 +53,12 @@ register(
         'frame_bound': (30, len(datasets.STOCKS_GOOGL))
     }
 )
+
+register(
+    id='new_multi_env-v0',
+    entry_point='gym_anytrading.envs:NewMultiEnv',
+    kwargs={
+        'df': deepcopy(datasets.STOCKS_GOOGL),
+        'frame_bound': (30, len(datasets.STOCKS_GOOGL))
+    }
+)

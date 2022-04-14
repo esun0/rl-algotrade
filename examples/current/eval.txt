@@ -1,0 +1,19 @@
+a2c:
+ddpg:
+dqn:
+ppo:
+sac:
+td3:
+
+with window:
+without window:
+
+give last day prices?
+
+take best and train with reshaped reward function
+
+with and without current positions (trivial baselines):
+
+rl hyperparamter search:
+
+add transaction costs to see the effect on with/without curr pos.
